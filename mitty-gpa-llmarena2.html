@@ -1,0 +1,693 @@
+I'll update the GPA calculator to automatically save and load data using localStorage. This means your daughter's data will persist even after closing the browser or refreshing the page.
+
+```html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Archbishop Mitty GPA Calculator</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 3px solid #667eea;
+        }
+
+        .header h1 {
+            color: #333;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            color: #666;
+            font-size: 14px;
+        }
+
+        .save-indicator {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: #4ecdc4;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 20px;
+            font-size: 14px;
+            display: none;
+            animation: fadeInOut 2s ease;
+            z-index: 1000;
+        }
+
+        @keyframes fadeInOut {
+            0% { opacity: 0; transform: translateY(-10px); }
+            20% { opacity: 1; transform: translateY(0); }
+            80% { opacity: 1; transform: translateY(0); }
+            100% { opacity: 0; transform: translateY(-10px); }
+        }
+
+        .year-section {
+            margin-bottom: 30px;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            padding: 20px;
+            background: #f9f9f9;
+        }
+
+        .year-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .year-header h2 {
+            color: #667eea;
+            font-size: 20px;
+        }
+
+        .semester-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        @media (max-width: 768px) {
+            .semester-container {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .semester {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+
+        .semester h3 {
+            color: #444;
+            margin-bottom: 15px;
+            font-size: 16px;
+            text-align: center;
+            background: #f0f4ff;
+            padding: 8px;
+            border-radius: 5px;
+        }
+
+        .course-list {
+            margin-bottom: 10px;
+        }
+
+        .course-row {
+            display: grid;
+            grid-template-columns: 2fr 1fr 1fr 1fr auto;
+            gap: 10px;
+            margin-bottom: 10px;
+            align-items: center;
+        }
+
+        .course-row input, .course-row select {
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+
+        .course-row input:focus, .course-row select:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.1);
+        }
+
+        .remove-btn {
+            background: #ff4757;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            padding: 8px 12px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: background 0.3s;
+        }
+
+        .remove-btn:hover {
+            background: #ff3838;
+        }
+
+        .add-course-btn {
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            padding: 10px 20px;
+            cursor: pointer;
+            font-size: 14px;
+            width: 100%;
+            transition: background 0.3s;
+        }
+
+        .add-course-btn:hover {
+            background: #5a6fd8;
+        }
+
+        .gpa-display {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 25px;
+            border-radius: 10px;
+            margin-top: 30px;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+        }
+
+        .gpa-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            text-align: center;
+        }
+
+        .gpa-item h3 {
+            font-size: 16px;
+            margin-bottom: 10px;
+            opacity: 0.9;
+        }
+
+        .gpa-value {
+            font-size: 36px;
+            font-weight: bold;
+        }
+
+        .controls {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            margin: 20px 0;
+        }
+
+        .control-btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.3s;
+        }
+
+        .calculate-btn {
+            background: #00d2d3;
+            color: white;
+        }
+
+        .calculate-btn:hover {
+            background: #00b5b5;
+            transform: translateY(-2px);
+        }
+
+        .clear-btn {
+            background: #ff6b6b;
+            color: white;
+        }
+
+        .clear-btn:hover {
+            background: #ff5252;
+        }
+
+        .export-btn {
+            background: #4ecdc4;
+            color: white;
+        }
+
+        .export-btn:hover {
+            background: #44b3aa;
+        }
+
+        .info-box {
+            background: #f0f4ff;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            border-left: 4px solid #667eea;
+        }
+
+        .info-box h4 {
+            color: #667eea;
+            margin-bottom: 10px;
+        }
+
+        .info-box ul {
+            margin-left: 20px;
+            color: #666;
+            font-size: 14px;
+        }
+
+        .info-box li {
+            margin-bottom: 5px;
+        }
+
+        .auto-save-note {
+            text-align: center;
+            color: #4ecdc4;
+            font-size: 12px;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="save-indicator" id="saveIndicator">✓ Auto-saved</div>
+    
+    <div class="container">
+        <div class="header">
+            <h1>📚 Archbishop Mitty GPA Calculator</h1>
+            <p>Calculate Weighted, Unweighted, and Academic Course Weighted GPA</p>
+            <div class="auto-save-note">✨ Your data is automatically saved as you type</div>
+        </div>
+
+        <div class="info-box">
+            <h4>Grade Scale Information:</h4>
+            <ul>
+                <li><strong>Regular Classes:</strong> A=4.0, B=3.0, C=2.0, D=1.0, F=0.0</li>
+                <li><strong>Honors/AP Classes (Weighted):</strong> A=5.0, B=4.0, C=3.0, D=1.0, F=0.0</li>
+                <li><strong>Academic Course Weighted:</strong> Only includes academic courses with honors/AP weight</li>
+            </ul>
+        </div>
+
+        <!-- Year 1 (Freshman) -->
+        <div class="year-section">
+            <div class="year-header">
+                <h2>Freshman Year</h2>
+            </div>
+            <div class="semester-container">
+                <div class="semester" id="freshman-fall">
+                    <h3>Fall Semester</h3>
+                    <div class="course-list"></div>
+                    <button class="add-course-btn" onclick="addCourse('freshman-fall')">+ Add Course</button>
+                </div>
+                <div class="semester" id="freshman-spring">
+                    <h3>Spring Semester</h3>
+                    <div class="course-list"></div>
+                    <button class="add-course-btn" onclick="addCourse('freshman-spring')">+ Add Course</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Year 2 (Sophomore) -->
+        <div class="year-section">
+            <div class="year-header">
+                <h2>Sophomore Year</h2>
+            </div>
+            <div class="semester-container">
+                <div class="semester" id="sophomore-fall">
+                    <h3>Fall Semester</h3>
+                    <div class="course-list"></div>
+                    <button class="add-course-btn" onclick="addCourse('sophomore-fall')">+ Add Course</button>
+                </div>
+                <div class="semester" id="sophomore-spring">
+                    <h3>Spring Semester</h3>
+                    <div class="course-list"></div>
+                    <button class="add-course-btn" onclick="addCourse('sophomore-spring')">+ Add Course</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Year 3 (Junior) -->
+        <div class="year-section">
+            <div class="year-header">
+                <h2>Junior Year</h2>
+            </div>
+            <div class="semester-container">
+                <div class="semester" id="junior-fall">
+                    <h3>Fall Semester</h3>
+                    <div class="course-list"></div>
+                    <button class="add-course-btn" onclick="addCourse('junior-fall')">+ Add Course</button>
+                </div>
+                <div class="semester" id="junior-spring">
+                    <h3>Spring Semester</h3>
+                    <div class="course-list"></div>
+                    <button class="add-course-btn" onclick="addCourse('junior-spring')">+ Add Course</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Year 4 (Senior) -->
+        <div class="year-section">
+            <div class="year-header">
+                <h2>Senior Year</h2>
+            </div>
+            <div class="semester-container">
+                <div class="semester" id="senior-fall">
+                    <h3>Fall Semester</h3>
+                    <div class="course-list"></div>
+                    <button class="add-course-btn" onclick="addCourse('senior-fall')">+ Add Course</button>
+                </div>
+                <div class="semester" id="senior-spring">
+                    <h3>Spring Semester</h3>
+                    <div class="course-list"></div>
+                    <button class="add-course-btn" onclick="addCourse('senior-spring')">+ Add Course</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="controls">
+            <button class="control-btn calculate-btn" onclick="calculateGPA()">Calculate GPA</button>
+            <button class="control-btn export-btn" onclick="exportData()">Export to File</button>
+            <button class="control-btn clear-btn" onclick="clearAll()">Clear All Data</button>
+        </div>
+
+        <div class="gpa-display" id="gpa-display" style="display: none;">
+            <div class="gpa-grid">
+                <div class="gpa-item">
+                    <h3>Unweighted GPA</h3>
+                    <div class="gpa-value" id="unweighted-gpa">0.00</div>
+                </div>
+                <div class="gpa-item">
+                    <h3>Weighted GPA</h3>
+                    <div class="gpa-value" id="weighted-gpa">0.00</div>
+                </div>
+                <div class="gpa-item">
+                    <h3>Academic Weighted GPA</h3>
+                    <div class="gpa-value" id="academic-weighted-gpa">0.00</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let courseIdCounter = 0;
+        let autoSaveTimeout;
+
+        // Function to generate unique course IDs
+        function generateCourseId() {
+            return `course-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+        }
+
+        // Auto-save function
+        function autoSave() {
+            clearTimeout(autoSaveTimeout);
+            autoSaveTimeout = setTimeout(() => {
+                saveData(true);
+            }, 500); // Save after 500ms of inactivity
+        }
+
+        // Show save indicator
+        function showSaveIndicator() {
+            const indicator = document.getElementById('saveIndicator');
+            indicator.style.display = 'block';
+            setTimeout(() => {
+                indicator.style.display = 'none';
+            }, 2000);
+        }
+
+        function addCourse(semesterId, courseData = null) {
+            const courseList = document.querySelector(`#${semesterId} .course-list`);
+            const courseId = courseData?.id || generateCourseId();
+            
+            const courseRow = document.createElement('div');
+            courseRow.className = 'course-row';
+            courseRow.id = courseId;
+            courseRow.setAttribute('data-semester', semesterId);
+            
+            courseRow.innerHTML = `
+                <input type="text" placeholder="Course Name" class="course-name" 
+                       value="${courseData?.name || ''}" onchange="autoSave()" oninput="autoSave()">
+                <select class="course-type" onchange="autoSave()">
+                    <option value="regular" ${courseData?.type === 'regular' ? 'selected' : ''}>Regular</option>
+                    <option value="honors" ${courseData?.type === 'honors' ? 'selected' : ''}>Honors/AP</option>
+                </select>
+                <select class="course-category" onchange="autoSave()">
+                    <option value="academic" ${courseData?.category === 'academic' ? 'selected' : ''}>Academic</option>
+                    <option value="non-academic" ${courseData?.category === 'non-academic' ? 'selected' : ''}>Non-Academic</option>
+                </select>
+                <select class="course-grade" onchange="handleGradeChange(this)">
+                    <option value="">Grade</option>
+                    <option value="4.0" ${courseData?.grade === '4.0' ? 'selected' : ''}>A</option>
+                    <option value="3.7" ${courseData?.grade === '3.7' ? 'selected' : ''}>A-</option>
+                    <option value="3.3" ${courseData?.grade === '3.3' ? 'selected' : ''}>B+</option>
+                    <option value="3.0" ${courseData?.grade === '3.0' ? 'selected' : ''}>B</option>
+                    <option value="2.7" ${courseData?.grade === '2.7' ? 'selected' : ''}>B-</option>
+                    <option value="2.3" ${courseData?.grade === '2.3' ? 'selected' : ''}>C+</option>
+                    <option value="2.0" ${courseData?.grade === '2.0' ? 'selected' : ''}>C</option>
+                    <option value="1.7" ${courseData?.grade === '1.7' ? 'selected' : ''}>C-</option>
+                    <option value="1.3" ${courseData?.grade === '1.3' ? 'selected' : ''}>D+</option>
+                    <option value="1.0" ${courseData?.grade === '1.0' ? 'selected' : ''}>D</option>
+                    <option value="0.7" ${courseData?.grade === '0.7' ? 'selected' : ''}>D-</option>
+                    <option value="0.0" ${courseData?.grade === '0.0' ? 'selected' : ''}>F</option>
+                </select>
+                <button class="remove-btn" onclick="removeCourse('${courseId}')">Remove</button>
+            `;
+            
+            courseList.appendChild(courseRow);
+            
+            // If this is a new course (not loaded from storage), save immediately
+            if (!courseData) {
+                autoSave();
+            }
+        }
+
+        function handleGradeChange(selectElement) {
+            autoSave();
+            // Auto-calculate when grade changes
+            if (selectElement.value) {
+                setTimeout(calculateGPA, 100);
+            }
+        }
+
+        function removeCourse(courseId) {
+            const course = document.getElementById(courseId);
+            if (course) {
+                course.remove();
+                autoSave();
+                // Recalculate GPA after removal
+                setTimeout(calculateGPA, 100);
+            }
+        }
+
+        function calculateGPA() {
+            let unweightedTotal = 0;
+            let weightedTotal = 0;
+            let academicWeightedTotal = 0;
+            let totalCourses = 0;
+            let academicCourses = 0;
+
+            const allCourses = document.querySelectorAll('.course-row');
+            
+            allCourses.forEach(course => {
+                const gradeSelect = course.querySelector('.course-grade');
+                const typeSelect = course.querySelector('.course-type');
+                const categorySelect = course.querySelector('.course-category');
+                
+                if (gradeSelect.value) {
+                    const baseGrade = parseFloat(gradeSelect.value);
+                    const isHonors = typeSelect.value === 'honors';
+                    const isAcademic = categorySelect.value === 'academic';
+                    
+                    // Calculate weighted grade (add 1.0 for honors/AP, except for D and F)
+                    let weightedGrade = baseGrade;
+                    if (isHonors && baseGrade >= 2.0) {
+                        weightedGrade = baseGrade + 1.0;
+                    }
+                    
+                    // Unweighted GPA (all courses)
+                    unweightedTotal += baseGrade;
+                    totalCourses++;
+                    
+                    // Weighted GPA (all courses with honors weight)
+                    weightedTotal += weightedGrade;
+                    
+                    // Academic Weighted GPA (only academic courses with honors weight)
+                    if (isAcademic) {
+                        academicWeightedTotal += weightedGrade;
+                        academicCourses++;
+                    }
+                }
+            });
+            
+            const unweightedGPA = totalCourses > 0 ? (unweightedTotal / totalCourses).toFixed(2) : '0.00';
+            const weightedGPA = totalCourses > 0 ? (weightedTotal / totalCourses).toFixed(2) : '0.00';
+            const academicWeightedGPA = academicCourses > 0 ? (academicWeightedTotal / academicCourses).toFixed(2) : '0.00';
+            
+            document.getElementById('unweighted-gpa').textContent = unweightedGPA;
+            document.getElementById('weighted-gpa').textContent = weightedGPA;
+            document.getElementById('academic-weighted-gpa').textContent = academicWeightedGPA;
+            document.getElementById('gpa-display').style.display = 'block';
+        }
+
+        function saveData(isAutoSave = false) {
+            const data = [];
+            const allCourses = document.querySelectorAll('.course-row');
+            
+            allCourses.forEach(course => {
+                const semesterId = course.getAttribute('data-semester');
+                const courseData = {
+                    id: course.id,
+                    semesterId: semesterId,
+                    name: course.querySelector('.course-name').value,
+                    type: course.querySelector('.course-type').value,
+                    category: course.querySelector('.course-category').value,
+                    grade: course.querySelector('.course-grade').value
+                };
+                data.push(courseData);
+            });
+            
+            localStorage.setItem('mittyGPAData', JSON.stringify(data));
+            
+            if (isAutoSave) {
+                showSaveIndicator();
+            }
+        }
+
+        function loadData() {
+            const savedData = localStorage.getItem('mittyGPAData');
+            if (savedData) {
+                try {
+                    const data = JSON.parse(savedData);
+                    
+                    // Clear existing courses
+                    document.querySelectorAll('.course-list').forEach(list => list.innerHTML = '');
+                    
+                    // Load saved courses
+                    data.forEach(courseData => {
+                        if (courseData.semesterId) {
+                            addCourse(courseData.semesterId, courseData);
+                        }
+                    });
+                    
+                    // Calculate GPA if there are courses with grades
+                    const hasGrades = data.some(course => course.grade);
+                    if (hasGrades) {
+                        calculateGPA();
+                    }
+                } catch (e) {
+                    console.error('Error loading data:', e);
+                }
+            }
+        }
+
+        function clearAll() {
+            if (confirm('Are you sure you want to clear all courses? This action cannot be undone.')) {
+                document.querySelectorAll('.course-list').forEach(list => list.innerHTML = '');
+                document.getElementById('gpa-display').style.display = 'none';
+                localStorage.removeItem('mittyGPAData');
+                showSaveIndicator();
+            }
+        }
+
+        function exportData() {
+            const data = {
+                exportDate: new Date().toISOString(),
+                courses: []
+            };
+            
+            const allCourses = document.querySelectorAll('.course-row');
+            allCourses.forEach(course => {
+                const semesterId = course.getAttribute('data-semester');
+                const courseData = {
+                    semester: semesterId,
+                    name: course.querySelector('.course-name').value,
+                    type: course.querySelector('.course-type').value,
+                    category: course.querySelector('.course-category').value,
+                    grade: course.querySelector('.course-grade').value,
+                    gradeText: course.querySelector('.course-grade').selectedOptions[0]?.text || ''
+                };
+                data.courses.push(courseData);
+            });
+            
+            // Get GPA values
+            const unweightedGPA = document.getElementById('unweighted-gpa').textContent;
+            const weightedGPA = document.getElementById('weighted-gpa').textContent;
+            const academicWeightedGPA = document.getElementById('academic-weighted-gpa').textContent;
+            
+            data.gpa = {
+                unweighted: unweightedGPA,
+                weighted: weightedGPA,
+                academicWeighted: academicWeightedGPA
+            };
+            
+            // Create and download JSON file
+            const jsonStr = JSON.stringify(data, null, 2);
+            const blob = new Blob([jsonStr], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `mitty-gpa-data-${new Date().toISOString().split('T')[0]}.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
+        // Load data when page loads
+        window.addEventListener('DOMContentLoaded', function() {
+            loadData();
+        });
+
+        // Save data before page unload
+        window.addEventListener('beforeunload', function() {
+            saveData(true);
+        });
+    </script>
+</body>
+</html>
+```
+
+## Key Features Added for Auto-Save:
+
+### 1. **Automatic Data Persistence**
+- Data saves automatically as you type or make changes
+- Visual indicator shows when data is auto-saved
+- No need to manually click save buttons
+
+### 2. **Auto-Load on Page Open**
+- When you open or refresh the page, all previously entered data automatically loads
+- GPA calculations are restored if grades were entered
+
+### 3. **Smart Auto-Save Features**
+- Saves after 500ms of inactivity to prevent excessive saving
+- Saves when adding/removing courses
+- Saves when changing grades, course types, or categories
+- Saves before closing the browser tab
+
+### 4. **Export Functionality**
+- Export data to a JSON file for backup
+- Includes all course information and calculated GPAs
+- File is dated for easy organization
+
+### 5. **Visual Feedback**
+- Green "Auto-saved" indicator appears briefly when data saves
+- Note at the top indicates auto-save is active
+
+## How It Works:
+1. **Enter your courses normally** - Every change is automatically saved
+2. **Close the browser or refresh** - Your data remains intact
+3. **Open the page again** - All your courses and grades are exactly as you left them
+4. **No manual saving required** - It's all automatic!
+
+The data is stored in your browser's localStorage, which means:
+- Data persists across browser sessions
+- Data is specific to the browser and device you're using
+- Data remains until you explicitly clear it or clear browser data
+- Storage capacity is typically 5-10MB (more than enough for this application)
+
+Your daughter can now safely close the browser, shut down the computer, or refresh the page without losing any of her course information!
